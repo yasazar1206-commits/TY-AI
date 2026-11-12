@@ -2,10 +2,11 @@ from flask import Flask, render_template, request, jsonify
 from google import genai
 from google.genai import types
 from pathlib import Path
+import os
 
 app = Flask(__name__, template_folder='templates')
 
-API_KEY = (Path(__file__).parent / ".gemini_key").read_text().strip()
+API_KEY = os.environ.get("GEMINI_API_KEY") or (Path(__file__).parent / ".gemini_key").read_text().strip()
 client = genai.Client(api_key=API_KEY)
 MODEL = "gemini-3.1-flash-lite"
 

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TY AI</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#07152e;--panel:#10264b;--bubble:#183052;--text:white;--muted:#b5c8e8;--accent:#168bd0}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+body.light{--bg:#f1f5fb;--panel:#fff;--bubble:#e2ebf8;--text:#17243a;--muted:#53647c;--accent:#087fc1}
+button,input{font:inherit}
+button{cursor:pointer;border:0;color:white;background:var(--accent);border-radius:9px;padding:10px}
+#splash{position:fixed;inset:0;background:linear-gradient(#03102a88,#03102a99),url("/static/nature_bg.jpg") center/cover;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:50;padding:20px}
+#splash h1{color:#70c8ff;font-size:30px;margin:5px}
+#splash img{width:min(85vw,340px);height:340px;object-fit:contain;margin:15px 0}
+#splash p{color:#d4e7ff}
+#splash .loading{padding:13px 25px;border:1px solid #65caff;border-radius:18px;background:#061a3dcc;color:#ffd66b}
+#app{display:none;height:100dvh}
+#sidebar{width:280px;background:var(--panel);padding:14px;display:flex;flex-direction:column;gap:12px;border-right:1px solid #34506e;flex-shrink:0}
+.brand{display:flex;align-items:center;justify-content:space-between}
+.brand h2{color:#70c8ff;margin:5px}
+.sidebtn{width:100%;text-align:left;background:#1a3b64;margin:2px 0}
+#search{width:100%;padding:12px;border-radius:9px;border:1px solid #52749d;background:var(--bg);color:var(--text)}
+#historyList{overflow-y:auto;flex:1}
+.historyItem{display:flex;align-items:center;gap:4px;margin:5px 0}
+.historyOpen{background:transparent;text-align:left;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.historyAction{padding:7px;background:#29466b}
+#main{flex:1;min-width:0;display:flex;flex-direction:column;height:100dvh}
+header{background:var(--panel);padding:12px 15px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #28446e}
+header h2{margin:0;color:#70c8ff}
+header small{color:var(--muted)}
+#menuBtn{font-size:21px;background:transparent}
+#chatArea{flex:1;overflow-y:auto;padding:16px;width:100%;max-width:850px;margin:auto}
+#welcome{text-align:center;color:var(--muted);margin:50px 0}
+#welcome img{width:140px;height:140px;object-fit:contain}
+#welcome h3{color:#70c8ff;font-size:23px}
+.message{padding:13px 15px;margin:12px 0;border-radius:15px;line-height:1.6;max-width:90%;white-space:pre-wrap;overflow-wrap:anywhere}
+.user{background:#1766a5;margin-left:auto}
+.ai{background:var(--bubble);border:1px solid #315078;margin-right:auto}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.actions button{font-size:12px;padding:6px 9px;background:#29466b}
+#status{text-align:center;color:#80d5ff;padding:8px}
+.input-area{padding:10px;background:var(--panel);display:flex;gap:8px;border-top:1px solid #28446e}
+.input-area input{flex:1;min-width:0;padding:13px 15px;border-radius:25px;border:1px solid #52749d;background:var(--bg);color:var(--text);outline:none}
+.input-area button{border-radius:50%;min-width:45px;font-size:18px}
+#overlay{display:none;position:fixed;inset:0;background:#0009;z-index:10}
+#settings{display:none;position:fixed;z-index:30;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:min(92%,420px);max-height:85dvh;overflow:auto;background:var(--panel);padding:20px;border:1px solid #52749d;border-radius:15px}
+#settings h3{margin-top:0;color:#70c8ff}
+#settings label{display:block;margin:15px 0 6px;color:var(--muted)}
+#settings select{width:100%;padding:11px;background:var(--bg);color:var(--text);border:1px solid #52749d;border-radius:8px}
+#settings button{margin-top:14px}
+#closeSettings{float:right}
+@media(max-width:650px){
+#sidebar{position:fixed;z-index:20;top:0;bottom:0;left:-290px;transition:left .2s}
+#sidebar.open{left:0}
+#overlay.show{display:block}
+}
+</style>
+</head>
+<body>
+
+<div id="splash">
+<h1>WELCOME TO</h1><h1>TY AI</h1>
+<img src="/static/tyai_robot.png" alt="TY AI Robot">
+<p>Your Smart AI Assistant</p>
+<div class="loading">⌛ Please wait...<br>Loading TY AI</div>
+</div>
+
+<div id="overlay" onclick="closeSidebar()"></div>
+<div id="app">
+<aside id="sidebar">
+<div class="brand"><h2>TY AI</h2><button onclick="closeSidebar()">✕</button></div>
+<button class="sidebtn" onclick="newChat()">＋ New Chat</button>
+<input id="search" placeholder="Search chats..." oninput="renderHistory()">
+<div id="historyList"></div>
+<button class="sidebtn" onclick="openSettings()">⚙ Settings</button>
+<button class="sidebtn" onclick="clearHistory()">🗑 Clear All History</button>
+</aside>
+
+<section id="main">
+<header>
+<button id="menuBtn" onclick="openSidebar()">☰</button>
+<div><h2>TY AI</h2><small>Your Smart AI Assistant</small></div>
+</header>
+<div id="chatArea">
+<div id="welcome">
+<img src="/static/tyai_robot.png" alt="Robot">
+<h3>How can I help you?</h3>
+<p>வணக்கம்! என்னிடம் எதையும் கேட்கலாம்.</p>
+</div>
+<div id="chat"></div>
+<div id="status"></div>
+</div>
+<div class="input-area">
+<input id="userInput" placeholder="Message TY AI..." onkeydown="if(event.key==='Enter')sendToAI()">
+<button onclick="sendToAI()" title="Send">➤</button>
+</div>
+</section>
+</div>
+
+<div id="settings">
+<button id="closeSettings" onclick="closeSettings()">✕</button>
+<h3>⚙ TY AI Settings</h3>
+<label>Theme</label>
+<select id="themeSetting" onchange="setTheme(this.value)">
+<option value="dark">Dark</option><option value="light">Light</option>
+</select>
+<label>AI Response Language</label>
+<select id="languageSetting" onchange="saveSettings()">
+<option value="auto">Auto Detect – கேள்வி மொழி</option>
+<option value="Tamil">தமிழ்</option>
+<option value="English">English</option>
+<option value="Hindi">हिन्दी</option>
+<option value="Malayalam">മലയാളം</option>
+</select>
+<label>Voice Input Language</label>
+<select id="voiceSetting" onchange="saveSettings()">
+<option value="ta-IN">Tamil</option>
+<option value="en-IN">English</option>
+<option value="hi-IN">Hindi</option>
+<option value="ml-IN">Malayalam</option>
+</select>
+<button onclick="saveSettings()">Save Settings</button>
+<h3>About TY AI</h3>
+<p>TY AI – Your Smart AI Assistant</p>
+<p>Powered by Gemini AI</p>
+</div>
+
+<script>
+let currentCategory="General Assistant";
+let chats=[];
+let activeChatId=null;
+let settings={theme:"dark",language:"auto",voice:"ta-IN"};
+
+function loadData(){
+try{chats=JSON.parse(localStorage.getItem("tyai_chats")||"[]")}catch(e){chats=[]}
+if(!Array.isArray(chats))chats=[];
+try{settings={...settings,...JSON.parse(localStorage.getItem("tyai_settings")||"{}")}}catch(e){}
+setTheme(settings.theme);
+document.getElementById("languageSetting").value=settings.language;
+renderHistory();
+}
+
+function saveChats(){localStorage.setItem("tyai_chats",JSON.stringify(chats))}
+function saveSettings(){
+settings.language=document.getElementById("languageSetting").value;
+settings.theme=document.getElementById("themeSetting").value;
+localStorage.setItem("tyai_settings",JSON.stringify(settings));
+setTheme(settings.theme);
+}
+function setTheme(value){
+settings.theme=value;
+document.body.classList.toggle("light",value==="light");
+let el=document.getElementById("themeSetting");
+if(el)el.value=value;
+localStorage.setItem("tyai_settings",JSON.stringify(settings));
+}
+function newChat(){
+activeChatId=null;
+document.getElementById("chat").innerHTML="";
+document.getElementById("welcome").style.display="block";
+document.getElementById("status").textContent="";
+closeSidebar();
+}
+function getActiveChat(){return chats.find(c=>c.id===activeChatId)}
+function ensureChat(message){
+let c=getActiveChat();
+if(!c){
+c={id:String(Date.now()),title:message.slice(0,35),messages:[],time:new Date().toLocaleString()};
+chats.unshift(c);activeChatId=c.id;
+}
+return c;
+}
+function renderHistory(){
+let list=document.getElementById("historyList");
+let q=document.getElementById("search").value.toLowerCase();
+list.innerHTML="";
+chats.filter(c=>c.title.toLowerCase().includes(q)||c.messages.some(m=>m.text.toLowerCase().includes(q))).forEach(c=>{
+let row=document.createElement("div");row.className="historyItem";
+let open=document.createElement("button");open.className="historyOpen";open.textContent=c.title;open.onclick=()=>openChat(c.id);
+let edit=document.createElement("button");edit.className="historyAction";edit.textContent="✎";edit.title="Rename";edit.onclick=()=>renameChat(c.id);
+let del=document.createElement("button");del.className="historyAction";del.textContent="🗑";del.title="Delete";del.onclick=()=>deleteChat(c.id);
+row.append(open,edit,del);list.append(row);
+});
+}
+function openChat(id){
+activeChatId=id;
+let c=getActiveChat();if(!c)return;
+document.getElementById("chat").innerHTML="";
+document.getElementById("welcome").style.display=c.messages.length?"none":"block";
+c.messages.forEach((m,i)=>renderMessage(m,i));
+document.getElementById("status").textContent="";
+closeSidebar();
+}
+function renderMessage(m,i){
+let bubble=document.createElement("div");
+bubble.className="message "+m.role;
+bubble.textContent=m.text;
+document.getElementById("chat").append(bubble);
+if(m.role==="ai"){
+let actions=document.createElement("div");actions.className="actions";
+let copy=document.createElement("button");copy.textContent="Copy";copy.onclick=()=>navigator.clipboard.writeText(m.text);
+let regen=document.createElement("button");regen.textContent="Regenerate";regen.onclick=()=>regenerate(i);
+let translate=document.createElement("button");translate.textContent="Translate";translate.onclick=()=>translateMessage(m.text);
+let speak=document.createElement("button");speak.textContent="🔊 Speak";speak.onclick=()=>speakAnswer(m.text);
+actions.append(copy,regen,translate,speak);bubble.append(actions);
+}else{
+let actions=document.createElement("div");actions.className="actions";
+let edit=document.createElement("button");edit.textContent="Edit";edit.onclick=()=>editMessage(i);
+actions.append(edit);bubble.append(actions);
+}
+}
+function renameChat(id){
+let c=chats.find(x=>x.id===id);if(!c)return;
+let name=prompt("Enter chat name:",c.title);
+if(name&&name.trim()){c.title=name.trim();saveChats();renderHistory()}
+}
+function deleteChat(id){
+if(!confirm("இந்த chat-ஐ நீக்கவா?"))return;
+chats=chats.filter(c=>c.id!==id);saveChats();
+if(activeChatId===id)newChat();
+renderHistory();
+}
+function clearHistory(){
+if(!confirm("எல்லா Chat History-யையும் நீக்கவா?"))return;
+chats=[];saveChats();newChat();renderHistory();
+}
+function editMessage(i){
+let c=getActiveChat();if(!c)return;
+let m=c.messages[i];let value=prompt("Edit your message:",m.text);
+if(value===null||!value.trim())return;
+c.messages=c.messages.slice(0,i);
+saveChats();openChat(c.id);
+document.getElementById("userInput").value=value.trim();
+sendToAI();
+}
+async function regenerate(i){
+let c=getActiveChat();if(!c||i<1)return;
+let question=c.messages[i-1];
+if(question.role!=="user")return;
+c.messages=c.messages.slice(0,i);
+saveChats();openChat(c.id);
+await askMessage(question.text);
+}
+function addMessage(text,role){
+let c=ensureChat(text);
+let m={text,role};
+c.messages.push(m);saveChats();
+document.getElementById("welcome").style.display="none";
+renderMessage(m,c.messages.length-1);
+document.getElementById("chatArea").scrollTop=document.getElementById("chatArea").scrollHeight;
+renderHistory();
+}
+async function sendToAI(){
+if(window.tyaiSending)return;
+let input=document.getElementById("userInput");
+let message=input.value.trim();if(!message)return;
+input.value="";await askMessage(message,true);
+}
+async function askMessage(message,speakReply=false){
+if(window.tyaiSending)return;
+window.tyaiSending=true;
+document.getElementById("status").textContent="TY AI பதில் தயார் செய்கிறது...";
+addMessage(message,"user");
+try{
+let response=await fetch("/ask",{
+method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({message:message,language:settings.language})
+});
+let data=await response.json();
+if(!response.ok)throw new Error(data.error||"Server error");
+let answer=data.answer||"பதில் கிடைக்கவில்லை.";
+addMessage(answer,"ai");
+document.getElementById("status").textContent="";
+if(speakReply)speakAnswer(answer);
+}catch(error){
+document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
+console.log("TY AI Error:",error);
+}finally{window.tyaiSending=false}
+}
+
+
+function getSpeechLanguage(text){
+    if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";
+    if (/[\u0D00-\u0D7F]/.test(text)) return "ml-IN";
+    if (/[\u0900-\u097F]/.test(text)) return "hi-IN";
+    return "en-IN";
+}
+
+function speakAnswer(text){
+    if (!("speechSynthesis" in window)) {
+        document.getElementById("status").textContent =
+            "இந்த Browser-ல் Voice Output ஆதரவு இல்லை.";
+        return;
+    }
+
+    speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = getSpeechLanguage(text);
+    utterance.rate = 0.95;
+
+    const voices = speechSynthesis.getVoices();
+    const matchingVoice = voices.find(v =>
+        v.lang.toLowerCase().startsWith(utterance.lang.slice(0,2).toLowerCase())
+    );
+
+    if (matchingVoice) utterance.voice = matchingVoice;
+
+    utterance.onerror = () => {
+        document.getElementById("status").textContent =
+            "குரல் பதில் கிடைக்கவில்லை. Phone TTS மொழி அமைப்பைச் சரிபார்க்கவும்.";
+    };
+
+    speechSynthesis.speak(utterance);
+}
+
+async function translateMessage(text){
+let target=prompt("Translate to: Tamil, English, Hindi, Malayalam");
+if(!target||!target.trim())return;
+target=target.trim();
+document.getElementById("status").textContent="மொழிபெயர்க்கிறது...";
+try{
+let response=await fetch("/translate",{
+method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({text:text,target:target})
+});
+let data=await response.json();
+if(!response.ok)throw new Error(data.error||"Translation error");
+addMessage("Translation ("+target+"):\\n"+(data.translation||""),"ai");
+document.getElementById("status").textContent="";
+}catch(error){
+document.getElementById("status").textContent="மொழிபெயர்ப்பு பிழை: "+error.message;
+}
+}
+
+
+
+let voiceRecognition = null;
+let voiceActive = false;
+let voiceSegments = {};
+let voiceError = false;
+let voiceStopRequested = false;
+
+function startVoice(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const status = document.getElementById("status");
+    const input = document.getElementById("userInput");
+
+    if (!SR) {
+        status.textContent = "Chrome Voice Input ஆதரவு இல்லை.";
+        return;
+    }
+
+    if (voiceActive && voiceRecognition) {
+        voiceStopRequested = true;
+        status.textContent = "பதிவை நிறுத்துகிறது...";
+        voiceRecognition.stop();
+        return;
+    }
+
+    voiceStopRequested = false;
+    voiceSegments = {};
+    voiceError = false;
+
+    const r = new SR();
+    voiceRecognition = r;
+    r.lang = settings.voice || "ta-IN";
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 3;
+
+    r.onstart = () => {
+        voiceActive = true;
+        status.textContent = "பேசுங்கள்... முடிந்ததும் மைக்கை மீண்டும் அழுத்துங்கள்.";
+    };
+
+    r.onresult = (e) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) {
+                voiceSegments[i] = e.results[i][0].transcript.trim();
+            }
+        }
+        input.value = Object.keys(voiceSegments)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(i => voiceSegments[i])
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+    };
+
+    r.onerror = (e) => {
+        voiceError = true;
+        voiceActive = false;
+        status.textContent = "Voice Error: " + e.error;
+    };
+
+    r.onend = () => {
+        voiceActive = false;
+        voiceRecognition = null;
+
+        const spokenText = Object.keys(voiceSegments)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(i => voiceSegments[i])
+            .filter(Boolean)
+            .join(" ")
+            .trim();
+
+        if (!voiceError && voiceStopRequested && spokenText) {
+            input.value = "";
+            status.textContent = "AI பதில் தயாராகிறது...";
+            askMessage(spokenText, true);
+        } else if (!voiceError) {
+            status.textContent = "குரல் தெளிவாகப் பதிவாகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.";
+        }
+    };
+
+    try {
+        r.start();
+    } catch (e) {
+        voiceActive = false;
+        voiceRecognition = null;
+        status.textContent = "மைக் தொடங்க முடியவில்லை: " + e.message;
+    }
+}
+
+function openSidebar(){document.getElementById("sidebar").classList.add("open");document.getElementById("overlay").classList.add("show")}
+function closeSidebar(){document.getElementById("sidebar").classList.remove("open");document.getElementById("overlay").classList.remove("show")}
+function openSettings(){document.getElementById("settings").style.display="block";closeSidebar()}
+function closeSettings(){document.getElementById("settings").style.display="none"}
+
+loadData();
+setTimeout(()=>{
+document.getElementById("splash").style.display="none";
+document.getElementById("app").style.display="flex";
+},5000);
+</script>
+</body>
+</html>

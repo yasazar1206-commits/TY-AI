@@ -114,6 +114,11 @@ header small{color:var(--muted)}
 <option value="Hindi">हिन्दी</option>
 <option value="Malayalam">മലയാളം</option>
 </select>
+<label>AI Voice Output</label>
+<select id="voiceOutputSetting" onchange="saveSettings()">
+<option value="on">Voice ON</option>
+<option value="off">Voice OFF</option>
+</select>
 <label>Voice Input Language</label>
 <select id="voiceSetting" onchange="saveSettings()">
 <option value="ta-IN">Tamil</option>
@@ -131,7 +136,7 @@ header small{color:var(--muted)}
 let currentCategory="General Assistant";
 let chats=[];
 let activeChatId=null;
-let settings={theme:"dark",language:"auto",voice:"ta-IN"};
+let settings={theme:"dark",language:"auto",voice:"ta-IN",voiceOutput:"off"};
 
 function loadData(){
 try{chats=JSON.parse(localStorage.getItem("tyai_chats")||"[]")}catch(e){chats=[]}
@@ -139,12 +144,14 @@ if(!Array.isArray(chats))chats=[];
 try{settings={...settings,...JSON.parse(localStorage.getItem("tyai_settings")||"{}")}}catch(e){}
 setTheme(settings.theme);
 document.getElementById("languageSetting").value=settings.language;
+document.getElementById("voiceOutputSetting").value=settings.voiceOutput||"off";
 renderHistory();
 }
 
 function saveChats(){localStorage.setItem("tyai_chats",JSON.stringify(chats))}
 function saveSettings(){
 settings.language=document.getElementById("languageSetting").value;
+settings.voiceOutput=document.getElementById("voiceOutputSetting").value;
 settings.theme=document.getElementById("themeSetting").value;
 localStorage.setItem("tyai_settings",JSON.stringify(settings));
 setTheme(settings.theme);
@@ -273,7 +280,7 @@ if(!response.ok)throw new Error(data.error||"Server error");
 let answer=data.answer||"பதில் கிடைக்கவில்லை.";
 addMessage(answer,"ai");
 document.getElementById("status").textContent="";
-if(speakReply)speakAnswer(answer);
+if(speakReply && settings.voiceOutput==="on")speakAnswer(answer);
 }catch(error){
 document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
 console.log("TY AI Error:",error);

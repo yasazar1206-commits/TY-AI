@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
         splash.setBackgroundColor(Color.BLACK);
 
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.mipmap.ic_launcher);
+        logo.setImageResource(R.drawable.tyai_logo);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
         int size = (int) (220 * getResources().getDisplayMetrics().density);

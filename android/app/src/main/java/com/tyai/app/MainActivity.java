@@ -2,12 +2,15 @@ package com.tyai.app;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.graphics.Color;
+import android.view.Gravity;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
-import android.webkit.WebResourceRequest;
-import android.view.KeyEvent;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -16,22 +19,39 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        webView = new WebView(this);
-        setContentView(webView);
+        LinearLayout splash = new LinearLayout(this);
+        splash.setOrientation(LinearLayout.VERTICAL);
+        splash.setGravity(Gravity.CENTER);
+        splash.setBackgroundColor(Color.BLACK);
 
-        WebSettings settings = webView.getSettings();
-        settings.setJavaScriptEnabled(true);
-        settings.setDomStorageEnabled(true);
+        TextView title = new TextView(this);
+        title.setText("🌕\nTY AI");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(38);
+        title.setGravity(Gravity.CENTER);
+        title.setLetterSpacing(0.15f);
 
-        webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        splash.addView(title);
+        setContentView(splash);
 
-        webView.loadUrl("https://ty-ai-2.onrender.com");
+        new Handler().postDelayed(() -> {
+            webView = new WebView(this);
+            setContentView(webView);
+
+            WebSettings settings = webView.getSettings();
+            settings.setJavaScriptEnabled(true);
+            settings.setDomStorageEnabled(true);
+
+            webView.setWebViewClient(new WebViewClient());
+            webView.setWebChromeClient(new WebChromeClient());
+            webView.loadUrl("https://ty-ai-2.onrender.com");
+
+        }, 5000);
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();

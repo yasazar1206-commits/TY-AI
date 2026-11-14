@@ -114,18 +114,6 @@ header small{color:var(--muted)}
 <option value="Hindi">हिन्दी</option>
 <option value="Malayalam">മലയാളം</option>
 </select>
-<label>AI Voice Output</label>
-<select id="voiceOutputSetting" onchange="saveSettings()">
-<option value="on">Voice ON</option>
-<option value="off">Voice OFF</option>
-</select>
-<label>Voice Input Language</label>
-<select id="voiceSetting" onchange="saveSettings()">
-<option value="ta-IN">Tamil</option>
-<option value="en-IN">English</option>
-<option value="hi-IN">Hindi</option>
-<option value="ml-IN">Malayalam</option>
-</select>
 <button onclick="saveSettings()">Save Settings</button>
 <h3>About TY AI</h3>
 <p>TY AI – Your Smart AI Assistant</p>
@@ -136,7 +124,7 @@ header small{color:var(--muted)}
 let currentCategory="General Assistant";
 let chats=[];
 let activeChatId=null;
-let settings={theme:"dark",language:"auto",voice:"ta-IN",voiceOutput:"off"};
+let settings={theme:"dark",language:"auto"};
 
 function loadData(){
 try{chats=JSON.parse(localStorage.getItem("tyai_chats")||"[]")}catch(e){chats=[]}
@@ -144,14 +132,12 @@ if(!Array.isArray(chats))chats=[];
 try{settings={...settings,...JSON.parse(localStorage.getItem("tyai_settings")||"{}")}}catch(e){}
 setTheme(settings.theme);
 document.getElementById("languageSetting").value=settings.language;
-document.getElementById("voiceOutputSetting").value=settings.voiceOutput||"off";
 renderHistory();
 }
 
 function saveChats(){localStorage.setItem("tyai_chats",JSON.stringify(chats))}
 function saveSettings(){
 settings.language=document.getElementById("languageSetting").value;
-settings.voiceOutput=document.getElementById("voiceOutputSetting").value;
 settings.theme=document.getElementById("themeSetting").value;
 localStorage.setItem("tyai_settings",JSON.stringify(settings));
 setTheme(settings.theme);
@@ -210,8 +196,7 @@ let actions=document.createElement("div");actions.className="actions";
 let copy=document.createElement("button");copy.textContent="Copy";copy.onclick=()=>navigator.clipboard.writeText(m.text);
 let regen=document.createElement("button");regen.textContent="Regenerate";regen.onclick=()=>regenerate(i);
 let translate=document.createElement("button");translate.textContent="Translate";translate.onclick=()=>translateMessage(m.text);
-let speak=document.createElement("button");speak.textContent="🔊 Speak";speak.onclick=()=>speakAnswer(m.text);
-actions.append(copy,regen,translate,speak);bubble.append(actions);
+actions.append(copy,regen,translate);bubble.append(actions);
 }else{
 let actions=document.createElement("div");actions.className="actions";
 let edit=document.createElement("button");edit.textContent="Edit";edit.onclick=()=>editMessage(i);
@@ -263,9 +248,9 @@ async function sendToAI(){
 if(window.tyaiSending)return;
 let input=document.getElementById("userInput");
 let message=input.value.trim();if(!message)return;
-input.value="";await askMessage(message,true);
+input.value="";await askMessage(message);
 }
-async function askMessage(message,speakReply=false){
+async function askMessage(message){
 if(window.tyaiSending)return;
 window.tyaiSending=true;
 document.getElementById("status").textContent="TY AI பதில் தயார் செய்கிறது...";
@@ -280,48 +265,12 @@ if(!response.ok)throw new Error(data.error||"Server error");
 let answer=data.answer||"பதில் கிடைக்கவில்லை.";
 addMessage(answer,"ai");
 document.getElementById("status").textContent="";
-if(speakReply && settings.voiceOutput==="on")speakAnswer(answer);
 }catch(error){
 document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
 console.log("TY AI Error:",error);
 }finally{window.tyaiSending=false}
 }
 
-
-function getSpeechLanguage(text){
-    if (/[\u0B80-\u0BFF]/.test(text)) return "ta-IN";
-    if (/[\u0D00-\u0D7F]/.test(text)) return "ml-IN";
-    if (/[\u0900-\u097F]/.test(text)) return "hi-IN";
-    return "en-IN";
-}
-
-function speakAnswer(text){
-    if (!("speechSynthesis" in window)) {
-        document.getElementById("status").textContent =
-            "இந்த Browser-ல் Voice Output ஆதரவு இல்லை.";
-        return;
-    }
-
-    speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = getSpeechLanguage(text);
-    utterance.rate = 0.95;
-
-    const voices = speechSynthesis.getVoices();
-    const matchingVoice = voices.find(v =>
-        v.lang.toLowerCase().startsWith(utterance.lang.slice(0,2).toLowerCase())
-    );
-
-    if (matchingVoice) utterance.voice = matchingVoice;
-
-    utterance.onerror = () => {
-        document.getElementById("status").textContent =
-            "குரல் பதில் கிடைக்கவில்லை. Phone TTS மொழி அமைப்பைச் சரிபார்க்கவும்.";
-    };
-
-    speechSynthesis.speak(utterance);
-}
 
 async function translateMessage(text){
 let target=prompt("Translate to: Tamil, English, Hindi, Malayalam");
@@ -343,94 +292,6 @@ document.getElementById("status").textContent="மொழிபெயர்ப்
 }
 
 
-
-let voiceRecognition = null;
-let voiceActive = false;
-let voiceSegments = {};
-let voiceError = false;
-let voiceStopRequested = false;
-
-function startVoice(){
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const status = document.getElementById("status");
-    const input = document.getElementById("userInput");
-
-    if (!SR) {
-        status.textContent = "Chrome Voice Input ஆதரவு இல்லை.";
-        return;
-    }
-
-    if (voiceActive && voiceRecognition) {
-        voiceStopRequested = true;
-        status.textContent = "பதிவை நிறுத்துகிறது...";
-        voiceRecognition.stop();
-        return;
-    }
-
-    voiceStopRequested = false;
-    voiceSegments = {};
-    voiceError = false;
-
-    const r = new SR();
-    voiceRecognition = r;
-    r.lang = settings.voice || "ta-IN";
-    r.continuous = true;
-    r.interimResults = true;
-    r.maxAlternatives = 3;
-
-    r.onstart = () => {
-        voiceActive = true;
-        status.textContent = "பேசுங்கள்... முடிந்ததும் மைக்கை மீண்டும் அழுத்துங்கள்.";
-    };
-
-    r.onresult = (e) => {
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-            if (e.results[i].isFinal) {
-                voiceSegments[i] = e.results[i][0].transcript.trim();
-            }
-        }
-        input.value = Object.keys(voiceSegments)
-            .sort((a, b) => Number(a) - Number(b))
-            .map(i => voiceSegments[i])
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-    };
-
-    r.onerror = (e) => {
-        voiceError = true;
-        voiceActive = false;
-        status.textContent = "Voice Error: " + e.error;
-    };
-
-    r.onend = () => {
-        voiceActive = false;
-        voiceRecognition = null;
-
-        const spokenText = Object.keys(voiceSegments)
-            .sort((a, b) => Number(a) - Number(b))
-            .map(i => voiceSegments[i])
-            .filter(Boolean)
-            .join(" ")
-            .trim();
-
-        if (!voiceError && voiceStopRequested && spokenText) {
-            input.value = "";
-            status.textContent = "AI பதில் தயாராகிறது...";
-            askMessage(spokenText, true);
-        } else if (!voiceError) {
-            status.textContent = "குரல் தெளிவாகப் பதிவாகவில்லை. மீண்டும் முயற்சி செய்யுங்கள்.";
-        }
-    };
-
-    try {
-        r.start();
-    } catch (e) {
-        voiceActive = false;
-        voiceRecognition = null;
-        status.textContent = "மைக் தொடங்க முடியவில்லை: " + e.message;
-    }
-}
 
 function openSidebar(){document.getElementById("sidebar").classList.add("open");document.getElementById("overlay").classList.add("show")}
 function closeSidebar(){document.getElementById("sidebar").classList.remove("open");document.getElementById("overlay").classList.remove("show")}

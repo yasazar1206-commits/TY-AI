@@ -5,6 +5,7 @@ from pathlib import Path
 import os
 
 app = Flask(__name__, template_folder='templates')
+app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024
 
 API_KEY = os.environ.get("GEMINI_API_KEY") or (Path(__file__).parent / ".gemini_key").read_text().strip()
 client = genai.Client(api_key=API_KEY)
@@ -16,28 +17,73 @@ def index():
 
 @app.route('/ask', methods=['POST'])
 def ask_ai():
-    data = request.get_json(silent=True) or {}
+    if request.content_type and request.content_type.startswith("multipart/form-data"):
+        data = request.form
+    else:
+        data = request.get_json(silent=True) or {}
+
     message = (data.get("message") or "").strip()
     language = (data.get("language") or "auto").strip()
+    uploaded = request.files.get("image")
+    audio_uploaded = request.files.get("audio")
 
-    if not message:
-        return jsonify({"error": "கேள்வியை உள்ளிடவும்"}), 400
+    if not message and not uploaded and not audio_uploaded:
+        return jsonify({"error": "கேள்வி, Photo அல்லது Audio அனுப்பவும்"}), 400
 
     if language == "auto":
-        instruction = "Detect the language used in the user's message and answer in that same language. If the message uses multiple languages, respond in the main language used."
+        instruction = "Detect the language used by the user and answer in that same language."
     else:
         instruction = f"Answer in {language}."
 
     try:
+        contents = []
+
+        if message:
+            contents.append(message)
+
+        if uploaded:
+            allowed = ["image/jpeg", "image/png", "image/webp"]
+            if uploaded.mimetype not in allowed:
+                return jsonify({"error": "JPG, PNG, WEBP படங்களை மட்டும் அனுப்பவும்"}), 400
+
+            image_data = uploaded.read()
+            if not image_data or len(image_data) > 8 * 1024 * 1024:
+                return jsonify({"error": "Photo காலியாக உள்ளது அல்லது 8 MB-ஐ விடப் பெரியது"}), 400
+
+            contents.append(types.Part.from_bytes(
+                data=image_data,
+                mime_type=uploaded.mimetype
+            ))
+
+        if audio_uploaded:
+            audio_mime = (audio_uploaded.mimetype or "").split(";")[0].lower()
+            allowed_audio = [
+                "audio/webm", "audio/mp4", "audio/ogg",
+                "audio/mpeg", "audio/wav", "audio/aac"
+            ]
+            if audio_mime not in allowed_audio:
+                return jsonify({"error": "இந்த Audio வடிவம் ஆதரிக்கப்படவில்லை"}), 400
+
+            audio_data = audio_uploaded.read()
+            if not audio_data or len(audio_data) > 8 * 1024 * 1024:
+                return jsonify({"error": "Audio காலியாக உள்ளது அல்லது 8 MB-ஐ விடப் பெரியது"}), 400
+
+            contents.append("Listen to the audio and answer the speaker's request.")
+            contents.append(types.Part.from_bytes(
+                data=audio_data,
+                mime_type=audio_mime
+            ))
+
         response = client.models.generate_content(
             model=MODEL,
-            contents=message,
+            contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction="You are TY AI, a helpful assistant. " + instruction,
                 temperature=0.5,
                 max_output_tokens=300
             )
         )
+
         return jsonify({"answer": response.text or "பதில் கிடைக்கவில்லை."})
 
     except Exception as e:

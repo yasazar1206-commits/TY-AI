@@ -38,12 +38,107 @@ header small{color:var(--muted)}
 .message{padding:13px 15px;margin:12px 0;border-radius:15px;line-height:1.6;max-width:90%;white-space:pre-wrap;overflow-wrap:anywhere}
 .user{background:#1766a5;margin-left:auto}
 .ai{background:var(--bubble);border:1px solid #315078;margin-right:auto}
-.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
-.actions button{font-size:12px;padding:6px 9px;background:#29466b}
+.actions{
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+margin-top:12px;
+}
+.actions button{
+display:inline-flex;
+align-items:center;
+justify-content:center;
+gap:5px;
+font-size:12px;
+font-weight:600;
+padding:8px 12px;
+border-radius:20px;
+background:linear-gradient(135deg,#24476e,#386b99);
+color:#fff;
+border:1px solid #5884b3;
+box-shadow:0 2px 7px #0002;
+transition:transform .2s,background .2s;
+}
+.actions button:hover{
+background:linear-gradient(135deg,#168bd0,#285b9b);
+transform:translateY(-2px);
+}
+.actions button:active{
+transform:scale(.96);
+}
+body.light .actions button{
+background:linear-gradient(135deg,#e6f1ff,#c9def7);
+color:#17395e;
+border-color:#a6c4e7;
+}
 #status{text-align:center;color:#80d5ff;padding:8px}
-.input-area{padding:10px;background:var(--panel);display:flex;gap:8px;border-top:1px solid #28446e}
-.input-area input{flex:1;min-width:0;padding:13px 15px;border-radius:25px;border:1px solid #52749d;background:var(--bg);color:var(--text);outline:none}
-.input-area button{border-radius:50%;min-width:45px;font-size:18px}
+.input-area{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:9px;
+    margin:10px 12px 14px;
+    padding:9px 11px;
+    background:var(--panel);
+    border:1px solid #52749d;
+    border-radius:28px;
+    box-shadow:0 3px 14px #0003;
+}
+.input-area input{
+    flex:1;
+    min-width:0;
+    padding:11px 4px;
+    border:0;
+    background:transparent;
+    color:var(--text);
+    outline:none;
+    font-size:15px;
+}
+.input-area button{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    width:39px;
+    height:39px;
+    min-width:39px;
+    padding:0;
+    border:0;
+    border-radius:50%;
+    background:transparent;
+    color:var(--text);
+    font-size:20px;
+    cursor:pointer;
+}
+.input-area button:active{transform:scale(.92)}
+.input-area #sendBtn{
+    background:#fff;
+    color:#111;
+    font-size:21px;
+}
+#attachmentMenu{
+    display:none;
+    position:absolute;
+    bottom:calc(100% + 10px);
+    left:0;
+    z-index:20;
+    min-width:155px;
+    padding:7px;
+    background:var(--panel);
+    border:1px solid #52749d;
+    border-radius:15px;
+    box-shadow:0 5px 20px #0008;
+}
+#attachmentMenu button{
+    width:100%;
+    height:42px;
+    justify-content:flex-start;
+    gap:10px;
+    padding:0 10px;
+    border-radius:10px;
+    font-size:14px;
+}
+#attachmentMenu button:active{background:var(--bg)}
 #overlay{display:none;position:fixed;inset:0;background:#0009;z-index:10}
 #settings{display:none;position:fixed;z-index:30;inset:50% auto auto 50%;transform:translate(-50%,-50%);width:min(92%,420px);max-height:85dvh;overflow:auto;background:var(--panel);padding:20px;border:1px solid #52749d;border-radius:15px}
 #settings h3{margin-top:0;color:#70c8ff}
@@ -92,9 +187,21 @@ header small{color:var(--muted)}
 <div id="chat"></div>
 <div id="status"></div>
 </div>
+<div id="photoPreview" style="display:none;padding:8px;background:var(--panel)">
+<img id="selectedPhoto" style="max-width:130px;max-height:110px;border-radius:10px;object-fit:contain">
+<button type="button" onclick="removePhoto()">✕</button>
+</div>
 <div class="input-area">
+<div id="attachmentMenu">
+<button type="button" onclick="document.getElementById('galleryInput').click();toggleAttachmentMenu()">🖼️ Gallery</button>
+<button type="button" onclick="document.getElementById('cameraInput').click();toggleAttachmentMenu()">📷 Camera</button>
+</div>
+<button type="button" onclick="toggleAttachmentMenu()" title="Attach">＋</button>
+<input type="file" id="galleryInput" accept="image/jpeg,image/png,image/webp" hidden onchange="selectPhoto(this)">
+<input type="file" id="cameraInput" accept="image/*" capture="environment" hidden onchange="selectPhoto(this)">
 <input id="userInput" placeholder="Message TY AI..." onkeydown="if(event.key==='Enter')sendToAI()">
-<button onclick="sendToAI()" title="Send">➤</button>
+<button id="micBtn" onclick="startVoice()" title="Record voice">🎤</button>
+<button id="sendBtn" onclick="sendToAI()" title="Send">↑</button>
 </div>
 </section>
 </div>
@@ -106,6 +213,17 @@ header small{color:var(--muted)}
 <select id="themeSetting" onchange="setTheme(this.value)">
 <option value="dark">Dark</option><option value="light">Light</option>
 </select>
+<label>Voice Reply</label>
+<select id="voiceModeSetting" onchange="saveSettings()">
+<option value="auto">Auto – Voice கேள்விக்கு Voice பதில்</option>
+<option value="on">Voice ON – எல்லா பதில்களும் குரலில்</option>
+<option value="off">Voice OFF – Text மட்டும்</option>
+</select>
+<label>தமிழ் குரல் தேர்வு</label>
+<select id="voiceSelect">
+<option value="">Device Default Voice</option>
+</select>
+<button type="button" onclick="previewVoice()">🔊 குரலைக் கேள்</button>
 <label>AI Response Language</label>
 <select id="languageSetting" onchange="saveSettings()">
 <option value="auto">Auto Detect – கேள்வி மொழி</option>
@@ -124,7 +242,7 @@ header small{color:var(--muted)}
 let currentCategory="General Assistant";
 let chats=[];
 let activeChatId=null;
-let settings={theme:"dark",language:"auto"};
+let settings={theme:"dark",language:"auto",voiceMode:"auto",voiceName:""};
 
 function loadData(){
 try{chats=JSON.parse(localStorage.getItem("tyai_chats")||"[]")}catch(e){chats=[]}
@@ -132,12 +250,16 @@ if(!Array.isArray(chats))chats=[];
 try{settings={...settings,...JSON.parse(localStorage.getItem("tyai_settings")||"{}")}}catch(e){}
 setTheme(settings.theme);
 document.getElementById("languageSetting").value=settings.language;
+document.getElementById("voiceModeSetting").value=settings.voiceMode||"auto";
+populateVoiceList();
 renderHistory();
 }
 
 function saveChats(){localStorage.setItem("tyai_chats",JSON.stringify(chats))}
 function saveSettings(){
 settings.language=document.getElementById("languageSetting").value;
+settings.voiceMode=document.getElementById("voiceModeSetting").value;
+settings.voiceName=document.getElementById("voiceSelect").value;
 settings.theme=document.getElementById("themeSetting").value;
 localStorage.setItem("tyai_settings",JSON.stringify(settings));
 setTheme(settings.theme);
@@ -193,13 +315,13 @@ bubble.textContent=m.text;
 document.getElementById("chat").append(bubble);
 if(m.role==="ai"){
 let actions=document.createElement("div");actions.className="actions";
-let copy=document.createElement("button");copy.textContent="Copy";copy.onclick=()=>navigator.clipboard.writeText(m.text);
-let regen=document.createElement("button");regen.textContent="Regenerate";regen.onclick=()=>regenerate(i);
-let translate=document.createElement("button");translate.textContent="Translate";translate.onclick=()=>translateMessage(m.text);
+let copy=document.createElement("button");copy.textContent="📋 Copy";copy.onclick=()=>navigator.clipboard.writeText(m.text);
+let regen=document.createElement("button");regen.textContent="🔄 Regenerate";regen.onclick=()=>regenerate(i);
+let translate=document.createElement("button");translate.textContent="🌐 Translate";translate.onclick=()=>translateMessage(m.text);
 actions.append(copy,regen,translate);bubble.append(actions);
 }else{
 let actions=document.createElement("div");actions.className="actions";
-let edit=document.createElement("button");edit.textContent="Edit";edit.onclick=()=>editMessage(i);
+let edit=document.createElement("button");edit.textContent="✏️ Edit";edit.onclick=()=>editMessage(i);
 actions.append(edit);bubble.append(actions);
 }
 }
@@ -244,33 +366,206 @@ renderMessage(m,c.messages.length-1);
 document.getElementById("chatArea").scrollTop=document.getElementById("chatArea").scrollHeight;
 renderHistory();
 }
-async function sendToAI(){
-if(window.tyaiSending)return;
-let input=document.getElementById("userInput");
-let message=input.value.trim();if(!message)return;
-input.value="";await askMessage(message);
-}
-async function askMessage(message){
-if(window.tyaiSending)return;
-window.tyaiSending=true;
-document.getElementById("status").textContent="TY AI பதில் தயார் செய்கிறது...";
-addMessage(message,"user");
-try{
-let response=await fetch("/ask",{
-method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({message:message,language:settings.language})
-});
-let data=await response.json();
-if(!response.ok)throw new Error(data.error||"Server error");
-let answer=data.answer||"பதில் கிடைக்கவில்லை.";
-addMessage(answer,"ai");
-document.getElementById("status").textContent="";
-}catch(error){
-document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
-console.log("TY AI Error:",error);
-}finally{window.tyaiSending=false}
+let selectedPhotoFile = null;
+
+function selectPhoto(input){
+    const file = input.files && input.files[0];
+    if(!file) return;
+    if(!["image/jpeg","image/png","image/webp"].includes(file.type)){
+        alert("JPG, PNG, WEBP படங்களை மட்டும் தேர்வு செய்யவும்.");
+        input.value = "";
+        return;
+    }
+    if(file.size > 8 * 1024 * 1024){
+        alert("Photo 8 MB-க்குள் இருக்க வேண்டும்.");
+        input.value = "";
+        return;
+    }
+    selectedPhotoFile = file;
+    document.getElementById("selectedPhoto").src = URL.createObjectURL(file);
+    document.getElementById("photoPreview").style.display = "block";
 }
 
+function removePhoto(){
+    selectedPhotoFile = null;
+    document.getElementById("selectedPhoto").src = "";
+    document.getElementById("photoPreview").style.display = "none";
+    document.getElementById("galleryInput").value = "";
+    document.getElementById("cameraInput").value = "";
+}
+
+
+let audioRecorder = null;
+let audioChunks = [];
+let audioStream = null;
+
+function toggleAttachmentMenu(){
+    const menu=document.getElementById("attachmentMenu");
+    menu.style.display=menu.style.display==="block"?"none":"block";
+}
+
+async function sendToAI(){
+    if(window.tyaiSending)return;
+    let input=document.getElementById("userInput");
+    let message=input.value.trim();
+    if(!message && !selectedPhotoFile)return;
+    input.value="";
+    await askMessage(message,false);
+}
+
+async function askMessage(message,fromVoice=false,audioFile=null){
+    if(window.tyaiSending)return;
+    if(!message && !selectedPhotoFile && !audioFile)return;
+
+    window.tyaiSending=true;
+    document.getElementById("status").textContent="TY AI பதில் தயார் செய்கிறது...";
+    addMessage(message || (audioFile ? "🎙️ Voice message" : "📷 Photo"),"user");
+
+    const formData = new FormData();
+    formData.append("message",message);
+    formData.append("language",settings.language);
+    if(selectedPhotoFile) formData.append("image",selectedPhotoFile);
+    if(audioFile) formData.append("audio",audioFile);
+
+    removePhoto();
+
+    try{
+        let response=await fetch("/ask",{
+            method:"POST",
+            body:formData
+        });
+        let data=await response.json();
+        if(!response.ok)throw new Error(data.error||"Server error");
+
+        let answer=data.answer||"பதில் கிடைக்கவில்லை.";
+        addMessage(answer,"ai");
+        if(settings.voiceMode==="on"||(settings.voiceMode==="auto"&&fromVoice))speakAnswer(answer);
+        document.getElementById("status").textContent="";
+    }catch(error){
+        document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
+        console.log("TY AI Error:",error);
+    }finally{
+        window.tyaiSending=false;
+    }
+}
+
+async function startVoice(){
+    const micBtn=document.getElementById("micBtn");
+
+    if(audioRecorder && audioRecorder.state==="recording"){
+        audioRecorder.stop();
+        return;
+    }
+
+    if(window.tyaiSending)return;
+
+    try{
+        if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder){
+            throw new Error("இந்த Browser-ல் Audio Recording ஆதரவு இல்லை. Chrome பயன்படுத்தவும்.");
+        }
+
+        audioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+        audioChunks=[];
+
+        let mimeOptions=[
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4"
+        ];
+        let selectedMime=mimeOptions.find(type=>MediaRecorder.isTypeSupported(type));
+        audioRecorder=selectedMime
+            ? new MediaRecorder(audioStream,{mimeType:selectedMime})
+            : new MediaRecorder(audioStream);
+
+        audioRecorder.ondataavailable=(event)=>{
+            if(event.data && event.data.size>0)audioChunks.push(event.data);
+        };
+
+        audioRecorder.onstop=async()=>{
+            const mimeType=audioRecorder.mimeType || "audio/webm";
+            const audioBlob=new Blob(audioChunks,{type:mimeType});
+
+            audioStream.getTracks().forEach(track=>track.stop());
+            audioStream=null;
+            audioRecorder=null;
+            audioChunks=[];
+            micBtn.textContent="🎤";
+
+            if(!audioBlob.size){
+                document.getElementById("status").textContent="Audio பதிவு கிடைக்கவில்லை. மீண்டும் முயற்சி செய்.";
+                return;
+            }
+
+            if(audioBlob.size>8*1024*1024){
+                document.getElementById("status").textContent="Audio 8 MB-ஐ விடப் பெரியது.";
+                return;
+            }
+
+            const extension=mimeType.includes("mp4")?"mp4":"webm";
+            const audioFile=new File([audioBlob],"tyai_voice."+extension,{type:mimeType});
+            await askMessage("",true,audioFile);
+        };
+
+        audioRecorder.start();
+        micBtn.textContent="⏹️";
+        document.getElementById("status").textContent="🎙️ பதிவு செய்கிறது... நிறுத்த மைக்கை மீண்டும் அழுத்து.";
+    }catch(error){
+        if(audioStream){
+            audioStream.getTracks().forEach(track=>track.stop());
+            audioStream=null;
+        }
+        micBtn.textContent="🎤";
+        document.getElementById("status").textContent="Microphone பிழை: "+error.message;
+    }
+}
+
+function populateVoiceList(){
+if(!("speechSynthesis" in window))return;
+const select=document.getElementById("voiceSelect");
+if(!select)return;
+const voices=window.speechSynthesis.getVoices();
+const tamilVoices=voices.filter(v=>v.lang.toLowerCase().startsWith("ta"));
+select.innerHTML='<option value="">Device Default Voice</option>';
+tamilVoices.forEach(v=>{
+const option=document.createElement("option");
+option.value=v.name;
+option.textContent=v.name+" ("+v.lang+")";
+select.appendChild(option);
+});
+select.value=settings.voiceName||"";
+if(!tamilVoices.length){
+select.innerHTML='<option value="">தமிழ் குரல் கிடைக்கவில்லை</option>';
+}
+}
+
+function previewVoice(){
+const select=document.getElementById("voiceSelect");
+const voices=window.speechSynthesis.getVoices();
+const utterance=new SpeechSynthesisUtterance("வணக்கம்! நான் TY AI. எப்படி உதவ வேண்டும்?");
+utterance.lang="ta-IN";
+const chosen=voices.find(v=>v.name===select.value);
+if(chosen)utterance.voice=chosen;
+window.speechSynthesis.cancel();
+window.speechSynthesis.speak(utterance);
+}
+
+function speakAnswer(text){
+if(!("speechSynthesis" in window))return;
+window.speechSynthesis.cancel();
+const utterance=new SpeechSynthesisUtterance(text);
+utterance.lang=settings.language==="Tamil"?"ta-IN":
+settings.language==="Hindi"?"hi-IN":
+settings.language==="Malayalam"?"ml-IN":
+settings.language==="English"?"en-IN":"ta-IN";
+const voices=window.speechSynthesis.getVoices();
+const chosen=voices.find(v=>v.name===settings.voiceName);
+if(chosen)utterance.voice=chosen;
+window.speechSynthesis.speak(utterance);
+}
+
+if("speechSynthesis" in window){
+window.speechSynthesis.onvoiceschanged=populateVoiceList;
+}
 
 async function translateMessage(text){
 let target=prompt("Translate to: Tamil, English, Hindi, Malayalam");

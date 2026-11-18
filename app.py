@@ -74,17 +74,46 @@ def ask_ai():
                 mime_type=audio_mime
             ))
 
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction="You are TY AI, a helpful assistant. " + instruction,
-                temperature=0.5,
-                max_output_tokens=300
-            )
+        system_instruction = (
+            "You are TY AI, a helpful assistant. "
+            + instruction
+            + " Give complete, clear answers. Do not stop in the middle of a sentence."
         )
 
-        return jsonify({"answer": response.text or "பதில் கிடைக்கவில்லை."})
+        answer_parts = []
+        generation_contents = list(contents)
+
+        for attempt in range(5):
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=generation_contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.5,
+                    max_output_tokens=2048
+                )
+            )
+
+            part = response.text or ""
+            if not part:
+                break
+
+            answer_parts.append(part)
+
+            candidates = getattr(response, "candidates", None) or []
+            finish_reason = str(candidates[0].finish_reason) if candidates else ""
+
+            if "MAX_TOKENS" not in finish_reason:
+                break
+
+            generation_contents = list(contents) + [
+                "Continue the answer below from exactly where it stopped. "
+                "Do not repeat any previous sentences. Finish the entire answer.\n\n"
+                "Previous answer ending:\n" + "".join(answer_parts)
+            ]
+
+        full_answer = "".join(answer_parts).strip()
+        return jsonify({"answer": full_answer or "பதில் கிடைக்கவில்லை."})
 
     except Exception as e:
         print("Gemini error:", str(e), flush=True)

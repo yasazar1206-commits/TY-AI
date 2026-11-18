@@ -424,6 +424,10 @@ async function askMessage(message,fromVoice=false,audioFile=null){
     const formData = new FormData();
     formData.append("message",message);
     formData.append("language",settings.language);
+
+    const activeChat = getActiveChat();
+    const history = activeChat ? activeChat.messages.slice(0, -1).slice(-8) : [];
+    formData.append("history", JSON.stringify(history));
     if(selectedPhotoFile) formData.append("image",selectedPhotoFile);
     if(audioFile) formData.append("audio",audioFile);
 

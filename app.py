@@ -39,8 +39,25 @@ def ask_ai():
     try:
         contents = []
 
+        history_raw = data.get("history", "[]")
+        try:
+            import json
+            history = json.loads(history_raw) if isinstance(history_raw, str) else history_raw
+        except (ValueError, TypeError):
+            history = []
+
+        if isinstance(history, list):
+            for item in history[-8:]:
+                if not isinstance(item, dict):
+                    continue
+                role = item.get("role")
+                text = item.get("text")
+                if role in ("user", "ai") and isinstance(text, str) and text.strip():
+                    label = "User" if role == "user" else "TY AI"
+                    contents.append(f"{label}: {text}")
+
         if message:
-            contents.append(message)
+            contents.append(f"User: {message}")
 
         if uploaded:
             allowed = ["image/jpeg", "image/png", "image/webp"]

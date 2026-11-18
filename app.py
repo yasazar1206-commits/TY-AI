@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 from pathlib import Path
 import os
+import time
 
 app = Flask(__name__, template_folder='templates')
 app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024
@@ -84,15 +85,32 @@ def ask_ai():
         generation_contents = list(contents)
 
         for attempt in range(5):
-            response = client.models.generate_content(
-                model=MODEL,
-                contents=generation_contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    temperature=0.5,
-                    max_output_tokens=2048
-                )
-            )
+            for retry in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=MODEL,
+                        contents=generation_contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction,
+                            temperature=0.5,
+                            max_output_tokens=2048
+                        )
+                    )
+                    break
+                except Exception as api_error:
+                    error_text = str(api_error).upper()
+                    temporary_error = any(
+                        code in error_text
+                        for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]
+                    )
+                    if not temporary_error or retry == 2:
+                        raise
+                    wait_seconds = 2 ** (retry + 1)
+                    print(
+                        f"Gemini temporary error. Retry {retry + 1}/3 after {wait_seconds}s",
+                        flush=True
+                    )
+                    time.sleep(wait_seconds)
 
             part = response.text or ""
             if not part:

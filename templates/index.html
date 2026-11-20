@@ -35,9 +35,9 @@ header small{color:var(--muted)}
 #welcome{text-align:center;color:var(--muted);margin:50px 0}
 #welcome img{width:140px;height:140px;object-fit:contain}
 #welcome h3{color:#70c8ff;font-size:23px}
-.message{padding:13px 15px;margin:12px 0;border-radius:15px;line-height:1.6;max-width:90%;white-space:pre-wrap;overflow-wrap:anywhere}
-.user{background:#1766a5;margin-left:auto}
-.ai{background:var(--bubble);border:1px solid #315078;margin-right:auto}
+.message{padding:10px 0;margin:16px 0;line-height:1.8;max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;background:transparent;border:0;border-radius:0;box-shadow:none}
+.user{text-align:right;color:#8fd0ff;margin-left:auto}
+.ai{text-align:left;color:#e5edf8;margin-right:auto}
 .actions{
 display:flex;
 gap:8px;
@@ -151,6 +151,82 @@ border-color:#a6c4e7;
 #sidebar.open{left:0}
 #overlay.show{display:block}
 }
+
+/* TY AI - White background and blue ink theme */
+:root{
+  --bg:#ffffff;
+  --panel:#ffffff;
+  --bubble:transparent;
+  --text:#174ea6;
+  --muted:#3568ad;
+  --accent:#245fc4;
+}
+body, body.light{
+  background:#ffffff !important;
+  color:#174ea6 !important;
+}
+#splash{
+  background:#ffffff !important;
+}
+#splash h1,#splash p,#splash .loading{
+  color:#174ea6 !important;
+}
+header,#sidebar,#settings,.input-area,#photoPreview{
+  background:#ffffff !important;
+  color:#174ea6 !important;
+  border-color:#9bb9e8 !important;
+}
+header h2,.brand h2,#welcome h3,#settings h3{
+  color:#174ea6 !important;
+}
+header small,#welcome,#welcome p,#status,
+#settings label{
+  color:#3568ad !important;
+}
+.message,.user,.ai{
+  background:transparent !important;
+  color:#174ea6 !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+button,.actions button,.sidebtn{
+  background:#ffffff !important;
+  color:#174ea6 !important;
+  border:1px solid #7da3df !important;
+  box-shadow:none !important;
+}
+.input-area{
+  border:1px solid #7da3df !important;
+  box-shadow:none !important;
+}
+.input-area input,#search,#settings select{
+  background:#ffffff !important;
+  color:#174ea6 !important;
+  border-color:#9bb9e8 !important;
+}
+.input-area input::placeholder,#search::placeholder{
+  color:#6c8fca !important;
+}
+.input-area #sendBtn{
+  background:#ffffff !important;
+  color:#174ea6 !important;
+  border:1px solid #7da3df !important;
+}
+#attachmentMenu{
+  background:#ffffff !important;
+  border-color:#9bb9e8 !important;
+}
+
+
+/* Bigger chat typing text */
+.input-area input{
+  font-size:19px !important;
+  padding:12px 6px !important;
+}
+.input-area input::placeholder{
+  font-size:19px !important;
+}
+
 </style>
 </head>
 <body>
@@ -160,6 +236,25 @@ border-color:#a6c4e7;
 <img src="/static/tyai_robot.png" alt="TY AI Robot">
 <p>Your Smart AI Assistant</p>
 <div class="loading">⌛ Please wait...<br>Loading TY AI</div>
+</div>
+
+
+<div id="loginScreen" style="display:none;text-align:center;padding:35px 20px;background:white;color:#174ea6;min-height:100dvh">
+  <h1>TY AI</h1>
+  <h2>Welcome</h2>
+  <p>Enter your Phone Number</p>
+  <input id="loginPhone" type="tel" maxlength="10" placeholder="10 digit mobile number" style="padding:15px;width:90%;max-width:320px;border:1px solid #7da3df;border-radius:10px;color:#174ea6;background:white;font-size:18px">
+  <br><br>
+  <button onclick="loginTYAI()" style="padding:13px 35px">Login</button>
+</div>
+
+<div id="homeScreen" style="display:none;text-align:center;padding:35px 20px;background:white;color:#174ea6;min-height:100dvh">
+  <h1>WELCOME TO TY AI</h1>
+  <img src="/static/tyai_robot.png" alt="TY AI Robot" style="width:220px;height:220px;object-fit:contain;border:0;box-shadow:none">
+  <h2>Your Smart AI Assistant</h2>
+  <button onclick="startTYAIChat()" style="padding:14px 35px">Start Chat</button>
+  <br><br>
+  <button onclick="logoutTYAI()">Logout</button>
 </div>
 
 <div id="overlay" onclick="closeSidebar()"></div>
@@ -598,9 +693,43 @@ function openSettings(){document.getElementById("settings").style.display="block
 function closeSettings(){document.getElementById("settings").style.display="none"}
 
 loadData();
+function loginTYAI(){
+  const phone=document.getElementById("loginPhone").value.trim();
+  if(!/^[6-9][0-9]{9}$/.test(phone)){
+    alert("சரியான 10 இலக்க மொபைல் எண்ணை உள்ளிடவும்.");
+    return;
+  }
+  localStorage.setItem("tyai_phone",phone);
+  showTYAIHome();
+}
+
+function showTYAIHome(){
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("homeScreen").style.display="block";
+  document.getElementById("app").style.display="none";
+}
+
+function startTYAIChat(){
+  document.getElementById("homeScreen").style.display="none";
+  document.getElementById("loginScreen").style.display="none";
+  document.getElementById("app").style.display="flex";
+  newChat();
+}
+
+function logoutTYAI(){
+  localStorage.removeItem("tyai_phone");
+  document.getElementById("app").style.display="none";
+  document.getElementById("homeScreen").style.display="none";
+  document.getElementById("loginScreen").style.display="block";
+}
+
 setTimeout(()=>{
-document.getElementById("splash").style.display="none";
-document.getElementById("app").style.display="flex";
+  document.getElementById("splash").style.display="none";
+  if(localStorage.getItem("tyai_phone")){
+    showTYAIHome();
+  }else{
+    document.getElementById("loginScreen").style.display="block";
+  }
 },5000);
 </script>
 </body>

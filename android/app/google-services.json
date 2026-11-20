@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "487933800654",
+    "project_id": "ty-ai-9688d",
+    "storage_bucket": "ty-ai-9688d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:487933800654:android:d6cfac4bc0e2521b05209f",
+        "android_client_info": {
+          "package_name": "com.tyai.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCCTf9Hdn5uwmREDNzu9kahxpVuhPGsuw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

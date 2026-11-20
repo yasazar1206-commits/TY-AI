@@ -32,7 +32,16 @@ def ask_ai():
         return jsonify({"error": "கேள்வி, Photo அல்லது Audio அனுப்பவும்"}), 400
 
     if language == "auto":
-        instruction = "Detect the language used by the user and answer in that same language."
+        instruction = (
+                "Identify the language of the latest user message carefully. "
+                "If the message uses Tamil script, answer entirely in Tamil. "
+                "If it uses Devanagari Hindi, answer in Hindi. "
+                "If it uses English, answer in English. "
+                "For other languages, answer in the language used by the user. "
+                "If the user writes Tanglish using English letters, understand it as Tamil "
+                "and reply in natural Tamil script. "
+                "Never switch to Hindi or another language unless the user asks for it."
+            )
     else:
         instruction = f"Answer in {language}."
 
@@ -93,9 +102,30 @@ def ask_ai():
             ))
 
         system_instruction = (
-            "You are TY AI, a helpful assistant. "
+            "You are TY AI, an accurate, helpful and context-aware AI assistant. "
             + instruction
-            + " Give complete, clear answers. Do not stop in the middle of a sentence."
+            + " Always reply in the same language the user uses. "
+            "If the user mixes languages, follow their natural language style. "
+            "Understand the full conversation context before answering. "
+            "Use relevant previous messages. "
+            "Answer the exact question directly. "
+            "Be clear, concise and useful. "
+            "Never invent facts, dates, statistics, routes or timings. "
+            "If unsure, clearly say so instead of guessing. "
+            "Admit mistakes and correct them clearly. "
+            "Avoid unnecessary questions, repetition and unrelated suggestions. "
+            "Use simple, natural language. "
+            "Complete answers without stopping mid-sentence."
+            " Understand what the user is actually asking before answering. "
+            "Consider the full conversation, not just the latest message. "
+            "For follow-up questions, connect them to the correct earlier topic. "
+            "For calculations, work through the values carefully and verify the result. "
+            "For educational questions, give accurate answers at the appropriate study level. "
+            "For history and factual questions, distinguish established facts from uncertainty. "
+            "If a question has multiple meanings, ask one short clarification instead of guessing. "
+            "Do not agree with an incorrect statement just to please the user. "
+            "Correct errors politely and explain the correct point briefly. "
+            "Do not add unrelated information or repeat the question unnecessarily."
         )
 
         answer_parts = []
@@ -116,9 +146,22 @@ def ask_ai():
                     break
                 except Exception as api_error:
                     error_text = str(api_error).upper()
-                    temporary_error = any(
-                        code in error_text
-                        for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]
+                    temporary_error = (
+                        any(
+                            code in error_text
+                            for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]
+                        )
+                        or any(
+                            code in error_text
+                            for code in [
+                                "ERRNO 103",
+                                "CONNECTION ABORT",
+                                "SOFTWARE CAUSED CONNECTION ABORT",
+                                "CONNECTION RESET",
+                                "TIMED OUT",
+                                "TIMEOUT"
+                            ]
+                        )
                     )
                     if not temporary_error or retry == 2:
                         raise

@@ -2,6 +2,8 @@ package com.tyai.app;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.graphics.Color;
+import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebChromeClient;
@@ -13,6 +15,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
+        getWindow().getDecorView().setSystemUiVisibility(0);
 
         webView = new WebView(this);
         setContentView(webView);

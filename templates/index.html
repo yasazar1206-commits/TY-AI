@@ -6,9 +6,9 @@
 <title>TY AI</title>
 <style>
 *{box-sizing:border-box}
-:root{--bg:#07152e;--panel:#10264b;--bubble:#183052;--text:white;--muted:#b5c8e8;--accent:#168bd0}
+:root{--bg:#000000;--panel:#000000;--bubble:#202020;--text:#ffffff;--muted:#cccccc;--accent:#ffffff}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
-body.light{--bg:#f1f5fb;--panel:#fff;--bubble:#e2ebf8;--text:#17243a;--muted:#53647c;--accent:#087fc1}
+body.light{--bg:#ffffff;--panel:#ffffff;--bubble:#f2f2f2;--text:#000000;--muted:#444444;--accent:#000000}
 button,input{font:inherit}
 button{cursor:pointer;border:0;color:white;background:var(--accent);border-radius:9px;padding:10px}
 #splash{position:fixed;inset:0;background:linear-gradient(#03102a88,#03102a99),url("/static/nature_bg.jpg") center/cover;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:50;padding:20px}
@@ -152,64 +152,46 @@ border-color:#a6c4e7;
 #overlay.show{display:block}
 }
 
-/* TY AI - White background and blue ink theme */
-:root{
-  --bg:#ffffff;
-  --panel:#ffffff;
-  --bubble:transparent;
-  --text:#174ea6;
-  --muted:#3568ad;
-  --accent:#245fc4;
-}
+/* TY AI - Dark and Light themes */
 #splash{
   background:#000000 !important;
 }
-header,#sidebar,#settings,.input-area,#photoPreview{
-  background:#ffffff !important;
-  color:#174ea6 !important;
-  border-color:#9bb9e8 !important;
+header,#sidebar,#settings,.input-area,#photoPreview,#attachmentMenu{
+  background:var(--panel) !important;
+  color:var(--text) !important;
+  border-color:var(--muted) !important;
 }
-header h2,.brand h2,#welcome h3,#settings h3{
-  color:#174ea6 !important;
-}
-header small,#welcome,#welcome p,#status,
-#settings label{
-  color:#3568ad !important;
+header h2,.brand h2,#welcome h3,#settings h3,
+header small,#welcome,#welcome p,#status,#settings label{
+  color:var(--text) !important;
 }
 .message,.user,.ai{
-  background:transparent !important;
-  color:#174ea6 !important;
-  border:0 !important;
-  box-shadow:none !important;
+  background:var(--bubble) !important;
+  color:var(--text) !important;
+  border-color:var(--muted) !important;
 }
 button,.actions button,.sidebtn{
-  background:#ffffff !important;
-  color:#174ea6 !important;
-  border:1px solid #7da3df !important;
+  background:var(--panel) !important;
+  color:var(--text) !important;
+  border:1px solid var(--muted) !important;
   box-shadow:none !important;
 }
 .input-area{
-  border:1px solid #7da3df !important;
-  box-shadow:none !important;
+  border:1px solid var(--muted) !important;
 }
 .input-area input,#search,#settings select{
-  background:#ffffff !important;
-  color:#174ea6 !important;
-  border-color:#9bb9e8 !important;
+  background:var(--panel) !important;
+  color:var(--text) !important;
+  border-color:var(--muted) !important;
 }
 .input-area input::placeholder,#search::placeholder{
-  color:#6c8fca !important;
+  color:var(--muted) !important;
 }
 .input-area #sendBtn{
-  background:#ffffff !important;
-  color:#174ea6 !important;
-  border:1px solid #7da3df !important;
+  background:var(--panel) !important;
+  color:var(--text) !important;
+  border:1px solid var(--muted) !important;
 }
-#attachmentMenu{
-  background:#ffffff !important;
-  border-color:#9bb9e8 !important;
-}
-
 
 /* Bigger chat typing text */
 .input-area input{

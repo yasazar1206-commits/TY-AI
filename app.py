@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from google import genai
 from google.genai import types
 from pathlib import Path
@@ -11,6 +11,17 @@ app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024
 API_KEY = os.environ.get("GEMINI_API_KEY") or (Path(__file__).parent / ".gemini_key").read_text().strip()
 client = genai.Client(api_key=API_KEY)
 MODEL = "gemini-3.1-flash-lite"
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    response = send_from_directory(
+        app.static_folder,
+        'service-worker.js',
+        mimetype='application/javascript'
+    )
+    response.headers['Service-Worker-Allowed'] = '/'
+    return response
 
 @app.route('/')
 def index():

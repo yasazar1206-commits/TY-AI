@@ -13,7 +13,7 @@ button,input{font:inherit}
 button{cursor:pointer;border:0;color:white;background:var(--accent);border-radius:9px;padding:10px}
 #splash{position:fixed;inset:0;background:linear-gradient(#03102a88,#03102a99),url("/static/nature_bg.jpg") center/cover;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:50;padding:20px}
 #splash h1{color:#70c8ff;font-size:30px;margin:5px}
-#splash img{width:min(85vw,340px);height:340px;object-fit:contain;margin:15px 0}
+#splash img{width:min(85vw,340px);height:340px;object-fit:contain;margin:15px 0;background:transparent;border:0;border-radius:0;box-shadow:none;display:block}
 #splash p{color:#d4e7ff}
 #splash .loading{padding:13px 25px;border:1px solid #65caff;border-radius:18px;background:#061a3dcc;color:#ffd66b}
 #app{display:none;height:100dvh}
@@ -237,7 +237,7 @@ button,.actions button,.sidebtn{
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/static/service-worker.js")
+    navigator.serviceWorker.register("/service-worker.js")
       .catch(error => console.error("Service Worker:", error));
   });
 }

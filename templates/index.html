@@ -287,6 +287,9 @@ if ("serviceWorker" in navigator) {
 <header>
 <button id="menuBtn" onclick="openSidebar()">☰</button>
 <div><h2>TY AI</h2><small>Your Smart AI Assistant</small></div>
+<button id="installBtn" style="display:none;margin-left:auto;background:#168bd0">
+Install TY AI
+</button>
 </header>
 <div id="chatArea">
 <div id="welcome">
@@ -746,6 +749,38 @@ setTimeout(()=>{
     document.getElementById("loginScreen").style.display="block";
   }
 },5000);
+
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "block";
+});
+
+document.getElementById("installBtn").addEventListener("click", async () => {
+  if (!deferredInstallPrompt) {
+    alert("Install is not available yet. Please try again later.");
+    return;
+  }
+
+  deferredInstallPrompt.prompt();
+  const result = await deferredInstallPrompt.userChoice;
+
+  if (result.outcome === "accepted") {
+    document.getElementById("installBtn").style.display = "none";
+  }
+
+  deferredInstallPrompt = null;
+});
+
+window.addEventListener("appinstalled", () => {
+  const btn = document.getElementById("installBtn");
+  if (btn) btn.style.display = "none";
+});
+
 </script>
 </body>
 </html>

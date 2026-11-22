@@ -751,9 +751,22 @@ setTimeout(()=>{
 },5000);
 
 let deferredInstallPrompt = null;
+const installBtn = document.getElementById("installBtn");
+
+if (
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true
+) {
+  installBtn.style.display = "none";
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault();
+  if (
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true
+) return;
+
+event.preventDefault();
   deferredInstallPrompt = event;
 
   const btn = document.getElementById("installBtn");

@@ -506,7 +506,7 @@ async function askMessage(message,fromVoice=false,audioFile=null){
     if(!message && !selectedPhotoFile && !audioFile)return;
 
     window.tyaiSending=true;
-    document.getElementById("status").textContent="TY AI பதில் தயார் செய்கிறது...";
+    document.getElementById("status").textContent="Thinking...";
     addMessage(message || (audioFile ? "🎙️ Voice message" : "📷 Photo"),"user");
 
     const formData = new FormData();
@@ -568,6 +568,7 @@ async function askMessage(message,fromVoice=false,audioFile=null){
                 if(data.error) throw new Error(data.error);
 
                 if(data.text){
+                    if(!answer) document.getElementById("status").textContent="Typing...";
                     answer += data.text;
                     aiMessage.text = answer;
                     textNode.textContent = answer;

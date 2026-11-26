@@ -21,7 +21,9 @@ def service_worker():
     )
     response.headers['Service-Worker-Allowed'] = '/'
     return response
-
+@app.route('/health')
+def health():
+    return jsonify({"status": "ready", "service": "TY AI"}), 200
 @app.route('/')
 def index():
     return render_template('index.html')

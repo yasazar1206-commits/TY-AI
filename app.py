@@ -157,48 +157,76 @@ def ask_ai():
         )
 
         def generate():
-            try:
-                with requests.post(
-                    url,
-                    params={"key": API_KEY, "alt": "sse"},
-                    json=payload,
-                    stream=True,
-                    timeout=(15, 120)
-                ) as upstream:
-                    if upstream.status_code != 200:
-                        error_detail = upstream.text[:500]
-                        print("Gemini REST error:", upstream.status_code, error_detail, flush=True)
-                        yield "data: " + json.dumps(
-                            {"error": "Gemini API பிழை: " + str(upstream.status_code)},
-                            ensure_ascii=False
-                        ) + "\n\n"
-                        return
+            import time
 
-                    for line in upstream.iter_lines(decode_unicode=True):
-                        if not line or not line.startswith("data:"):
-                            continue
-                        try:
-                            chunk_data = json.loads(line[5:].strip())
-                        except json.JSONDecodeError:
-                            continue
+            retry_codes = {429, 500, 502, 503, 504}
 
-                        for candidate in chunk_data.get("candidates", []):
-                            for part in candidate.get("content", {}).get("parts", []):
-                                chunk_text = part.get("text")
-                                if chunk_text:
-                                    yield "data: " + json.dumps(
-                                        {"text": chunk_text},
-                                        ensure_ascii=False
-                                    ) + "\n\n"
+            for attempt in range(3):
+                try:
+                    with requests.post(
+                        url,
+                        params={"key": API_KEY, "alt": "sse"},
+                        json=payload,
+                        stream=True,
+                        timeout=(15, 120)
+                    ) as upstream:
 
-                yield "data: " + json.dumps({"done": True}) + "\n\n"
+                        if upstream.status_code != 200:
+                            status = upstream.status_code
+                            error_detail = upstream.text[:500]
+                            print(
+                                "Gemini REST error:",
+                                status, error_detail, flush=True
+                            )
 
-            except Exception as error:
-                print("Gemini streaming error:", str(error), flush=True)
-                yield "data: " + json.dumps(
-                    {"error": "பதில் பெற முடியவில்லை. மீண்டும் முயற்சி செய்யவும்."},
-                    ensure_ascii=False
-                ) + "\n\n"
+                            if status in retry_codes and attempt < 2:
+                                wait = 2 ** (attempt + 1)
+                                print(
+                                    f"Retrying Gemini in {wait}s...",
+                                    flush=True
+                                )
+                                time.sleep(wait)
+                                continue
+
+                            yield "data: " + json.dumps(
+                                {"error": "Gemini API பிழை: " + str(status)},
+                                ensure_ascii=False
+                            ) + "\\n\\n"
+                            return
+
+                        for line in upstream.iter_lines(decode_unicode=True):
+                            if not line or not line.startswith("data:"):
+                                continue
+
+                            try:
+                                chunk_data = json.loads(line[5:].strip())
+                            except json.JSONDecodeError:
+                                continue
+
+                            for candidate in chunk_data.get("candidates", []):
+                                for part in candidate.get("content", {}).get("parts", []):
+                                    chunk_text = part.get("text")
+                                    if chunk_text:
+                                        yield "data: " + json.dumps(
+                                            {"text": chunk_text},
+                                            ensure_ascii=False
+                                        ) + "\\n\\n"
+
+                    yield "data: " + json.dumps({"done": True}) + "\\n\\n"
+                    return
+
+                except Exception as error:
+                    print("Gemini streaming error:", str(error), flush=True)
+
+                    if attempt < 2:
+                        time.sleep(2 ** (attempt + 1))
+                        continue
+
+                    yield "data: " + json.dumps(
+                        {"error": "பதில் பெற முடியவில்லை. மீண்டும் முயற்சி செய்யவும்."},
+                        ensure_ascii=False
+                    ) + "\\n\\n"
+                    return
 
         return Response(
             stream_with_context(generate()),

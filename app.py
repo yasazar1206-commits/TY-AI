@@ -194,7 +194,8 @@ def ask_ai():
                             ) + "\\n\\n"
                             return
 
-                        for line in upstream.iter_lines(decode_unicode=True):
+                        upstream.encoding = "utf-8"
+                    for line in upstream.iter_lines(decode_unicode=True):
                             if not line or not line.startswith("data:"):
                                 continue
 

@@ -1,15 +1,14 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
-from google import genai
-from google.genai import types
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response, stream_with_context
 from pathlib import Path
 import os
-import time
+import json
+import base64
+import requests
 
 app = Flask(__name__, template_folder='templates')
 app.config['MAX_CONTENT_LENGTH'] = 9 * 1024 * 1024
 
 API_KEY = os.environ.get("GEMINI_API_KEY") or (Path(__file__).parent / ".gemini_key").read_text().strip()
-client = genai.Client(api_key=API_KEY)
 MODEL = "gemini-3.1-flash-lite"
 
 
@@ -44,40 +43,40 @@ def ask_ai():
 
     if language == "auto":
         instruction = (
-                "Identify the language of the latest user message carefully. "
-                "If the message uses Tamil script, answer entirely in Tamil. "
-                "If it uses Devanagari Hindi, answer in Hindi. "
-                "If it uses English, answer in English. "
-                "For other languages, answer in the language used by the user. "
-                "If the user writes Tanglish using English letters, understand it as Tamil "
-                "and reply in natural Tamil script. "
-                "Never switch to Hindi or another language unless the user asks for it."
-            )
+            "Identify the language of the latest user message carefully. "
+            "If the message uses Tamil script, answer entirely in Tamil. "
+            "If it uses Devanagari Hindi, answer in Hindi. "
+            "If it uses English, answer in English. "
+            "For other languages, answer in the language used by the user. "
+            "If the user writes Tanglish using English letters, understand it as Tamil "
+            "and reply in natural Tamil script. "
+            "Never switch to Hindi or another language unless the user asks for it."
+        )
     else:
         instruction = f"Answer in {language}."
 
     try:
-        contents = []
-
         history_raw = data.get("history", "[]")
         try:
-            import json
             history = json.loads(history_raw) if isinstance(history_raw, str) else history_raw
         except (ValueError, TypeError):
             history = []
 
+        conversation = []
         if isinstance(history, list):
             for item in history[-8:]:
                 if not isinstance(item, dict):
                     continue
                 role = item.get("role")
-                text = item.get("text")
-                if role in ("user", "ai") and isinstance(text, str) and text.strip():
+                old_text = item.get("text")
+                if role in ("user", "ai") and isinstance(old_text, str) and old_text.strip():
                     label = "User" if role == "user" else "TY AI"
-                    contents.append(f"{label}: {text}")
+                    conversation.append(f"{label}: {old_text}")
 
         if message:
-            contents.append(f"User: {message}")
+            conversation.append(f"User: {message}")
+
+        parts = [{"text": "\n".join(conversation) or "Please respond to the attached file."}]
 
         if uploaded:
             allowed = ["image/jpeg", "image/png", "image/webp"]
@@ -88,10 +87,12 @@ def ask_ai():
             if not image_data or len(image_data) > 8 * 1024 * 1024:
                 return jsonify({"error": "Photo காலியாக உள்ளது அல்லது 8 MB-ஐ விடப் பெரியது"}), 400
 
-            contents.append(types.Part.from_bytes(
-                data=image_data,
-                mime_type=uploaded.mimetype
-            ))
+            parts.append({
+                "inlineData": {
+                    "mimeType": uploaded.mimetype,
+                    "data": base64.b64encode(image_data).decode("ascii")
+                }
+            })
 
         if audio_uploaded:
             audio_mime = (audio_uploaded.mimetype or "").split(";")[0].lower()
@@ -106,11 +107,13 @@ def ask_ai():
             if not audio_data or len(audio_data) > 8 * 1024 * 1024:
                 return jsonify({"error": "Audio காலியாக உள்ளது அல்லது 8 MB-ஐ விடப் பெரியது"}), 400
 
-            contents.append("Listen to the audio and answer the speaker's request.")
-            contents.append(types.Part.from_bytes(
-                data=audio_data,
-                mime_type=audio_mime
-            ))
+            parts.append({"text": "Listen to the audio and answer the speaker's request."})
+            parts.append({
+                "inlineData": {
+                    "mimeType": audio_mime,
+                    "data": base64.b64encode(audio_data).decode("ascii")
+                }
+            })
 
         system_instruction = (
             "You are TY AI, an accurate, helpful and context-aware AI assistant. "
@@ -126,8 +129,8 @@ def ask_ai():
             "Admit mistakes and correct them clearly. "
             "Avoid unnecessary questions, repetition and unrelated suggestions. "
             "Use simple, natural language. "
-            "Complete answers without stopping mid-sentence."
-            " Understand what the user is actually asking before answering. "
+            "Complete answers without stopping mid-sentence. "
+            "Understand what the user is actually asking before answering. "
             "Consider the full conversation, not just the latest message. "
             "For follow-up questions, connect them to the correct earlier topic. "
             "For calculations, work through the values carefully and verify the result. "
@@ -139,70 +142,72 @@ def ask_ai():
             "Do not add unrelated information or repeat the question unnecessarily."
         )
 
-        answer_parts = []
-        generation_contents = list(contents)
+        payload = {
+            "systemInstruction": {"parts": [{"text": system_instruction}]},
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": {
+                "temperature": 0.5,
+                "maxOutputTokens": 2048
+            }
+        }
 
-        for attempt in range(5):
-            for retry in range(3):
-                try:
-                    response = client.models.generate_content(
-                        model=MODEL,
-                        contents=generation_contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction,
-                            temperature=0.5,
-                            max_output_tokens=2048
-                        )
-                    )
-                    break
-                except Exception as api_error:
-                    error_text = str(api_error).upper()
-                    temporary_error = (
-                        any(
-                            code in error_text
-                            for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED"]
-                        )
-                        or any(
-                            code in error_text
-                            for code in [
-                                "ERRNO 103",
-                                "CONNECTION ABORT",
-                                "SOFTWARE CAUSED CONNECTION ABORT",
-                                "CONNECTION RESET",
-                                "TIMED OUT",
-                                "TIMEOUT"
-                            ]
-                        )
-                    )
-                    if not temporary_error or retry == 2:
-                        raise
-                    wait_seconds = 2 ** (retry + 1)
-                    print(
-                        f"Gemini temporary error. Retry {retry + 1}/3 after {wait_seconds}s",
-                        flush=True
-                    )
-                    time.sleep(wait_seconds)
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            + MODEL + ":streamGenerateContent"
+        )
 
-            part = response.text or ""
-            if not part:
-                break
+        def generate():
+            try:
+                with requests.post(
+                    url,
+                    params={"key": API_KEY, "alt": "sse"},
+                    json=payload,
+                    stream=True,
+                    timeout=(15, 120)
+                ) as upstream:
+                    if upstream.status_code != 200:
+                        error_detail = upstream.text[:500]
+                        print("Gemini REST error:", upstream.status_code, error_detail, flush=True)
+                        yield "data: " + json.dumps(
+                            {"error": "Gemini API பிழை: " + str(upstream.status_code)},
+                            ensure_ascii=False
+                        ) + "\n\n"
+                        return
 
-            answer_parts.append(part)
+                    for line in upstream.iter_lines(decode_unicode=True):
+                        if not line or not line.startswith("data:"):
+                            continue
+                        try:
+                            chunk_data = json.loads(line[5:].strip())
+                        except json.JSONDecodeError:
+                            continue
 
-            candidates = getattr(response, "candidates", None) or []
-            finish_reason = str(candidates[0].finish_reason) if candidates else ""
+                        for candidate in chunk_data.get("candidates", []):
+                            for part in candidate.get("content", {}).get("parts", []):
+                                chunk_text = part.get("text")
+                                if chunk_text:
+                                    yield "data: " + json.dumps(
+                                        {"text": chunk_text},
+                                        ensure_ascii=False
+                                    ) + "\n\n"
 
-            if "MAX_TOKENS" not in finish_reason:
-                break
+                yield "data: " + json.dumps({"done": True}) + "\n\n"
 
-            generation_contents = list(contents) + [
-                "Continue the answer below from exactly where it stopped. "
-                "Do not repeat any previous sentences. Finish the entire answer.\n\n"
-                "Previous answer ending:\n" + "".join(answer_parts)
-            ]
+            except Exception as error:
+                print("Gemini streaming error:", str(error), flush=True)
+                yield "data: " + json.dumps(
+                    {"error": "பதில் பெற முடியவில்லை. மீண்டும் முயற்சி செய்யவும்."},
+                    ensure_ascii=False
+                ) + "\n\n"
 
-        full_answer = "".join(answer_parts).strip()
-        return jsonify({"answer": full_answer or "பதில் கிடைக்கவில்லை."})
+        return Response(
+            stream_with_context(generate()),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no"
+            }
+        )
 
     except Exception as e:
         print("Gemini error:", str(e), flush=True)
@@ -219,15 +224,44 @@ def translate_text():
         return jsonify({"error": "மொழியையும் உரையையும் சரிபார்க்கவும்"}), 400
 
     try:
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=f"Translate the following text into {target}. Return only the translation, preserving its meaning:\n\n{message}",
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                max_output_tokens=500
-            )
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            + MODEL + ":generateContent"
         )
-        return jsonify({"translation": response.text or "Translation unavailable."})
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": (
+                        f"Translate the following text into {target}. "
+                        "Return only the translation, preserving its meaning:\n\n"
+                        + message
+                    )
+                }]
+            }],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 500
+            }
+        }
+
+        response = requests.post(
+            url,
+            params={"key": API_KEY},
+            json=payload,
+            timeout=45
+        )
+
+        if response.status_code != 200:
+            print("Translation REST error:", response.status_code, response.text[:500], flush=True)
+            return jsonify({"error": "மொழிபெயர்ப்பு கிடைக்கவில்லை. மீண்டும் முயற்சி செய்யவும்."}), 500
+
+        result = response.json()
+        translated = ""
+        for candidate in result.get("candidates", []):
+            for part in candidate.get("content", {}).get("parts", []):
+                translated += part.get("text", "")
+
+        return jsonify({"translation": translated.strip() or "Translation unavailable."})
 
     except Exception as e:
         print("Translation error:", str(e), flush=True)

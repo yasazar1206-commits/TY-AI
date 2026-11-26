@@ -112,8 +112,8 @@ border-color:#a6c4e7;
 }
 .input-area button:active{transform:scale(.92)}
 .input-area #sendBtn{
-    background:#fff;
-    color:#111;
+    background:var(--accent);
+    color:var(--bg);
     font-size:21px;
 }
 #attachmentMenu{
@@ -516,23 +516,79 @@ async function askMessage(message,fromVoice=false,audioFile=null){
     const activeChat = getActiveChat();
     const history = activeChat ? activeChat.messages.slice(0, -1).slice(-8) : [];
     formData.append("history", JSON.stringify(history));
+
     if(selectedPhotoFile) formData.append("image",selectedPhotoFile);
     if(audioFile) formData.append("audio",audioFile);
 
     removePhoto();
 
     try{
-        let response=await fetch("/ask",{
+        const response = await fetch("/ask", {
             method:"POST",
             body:formData
         });
-        let data=await response.json();
-        if(!response.ok)throw new Error(data.error||"Server error");
 
-        let answer=data.answer||"பதில் கிடைக்கவில்லை.";
-        addMessage(answer,"ai");
-        if(settings.voiceMode==="on"||(settings.voiceMode==="auto"&&fromVoice))speakAnswer(answer);
+        if(!response.ok){
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Server error");
+        }
+
+        if(!response.body) throw new Error("Streaming ஆதரிக்கப்படவில்லை");
+
+        addMessage("","ai");
+
+        const chat = getActiveChat();
+        const aiMessage = chat.messages[chat.messages.length-1];
+        const bubble = document.querySelector("#chat .message.ai:last-child");
+
+        if(!bubble) throw new Error("Chat display error");
+
+        const textNode = document.createTextNode("");
+        bubble.insertBefore(textNode,bubble.firstChild);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let answer = "";
+
+        while(true){
+            const {value,done} = await reader.read();
+            if(done) break;
+
+            buffer += decoder.decode(value,{stream:true});
+            const events = buffer.split("\n\n");
+            buffer = events.pop();
+
+            for(const event of events){
+                const line = event.split("\n").find(x=>x.startsWith("data:"));
+                if(!line) continue;
+
+                const data = JSON.parse(line.slice(5).trim());
+
+                if(data.error) throw new Error(data.error);
+
+                if(data.text){
+                    answer += data.text;
+                    aiMessage.text = answer;
+                    textNode.textContent = answer;
+                    document.getElementById("chatArea").scrollTop =
+                        document.getElementById("chatArea").scrollHeight;
+                }
+            }
+        }
+
+        if(!answer) throw new Error("பதில் கிடைக்கவில்லை.");
+
+        aiMessage.text = answer;
+        saveChats();
+        renderHistory();
+
+        if(settings.voiceMode==="on"||(settings.voiceMode==="auto"&&fromVoice)){
+            speakAnswer(answer);
+        }
+
         document.getElementById("status").textContent="";
+
     }catch(error){
         document.getElementById("status").textContent="இணைப்பில் பிழை: "+error.message;
         console.log("TY AI Error:",error);

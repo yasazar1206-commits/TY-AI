@@ -116,30 +116,25 @@ def ask_ai():
             })
 
         system_instruction = (
-            "You are TY AI, an accurate, helpful and context-aware AI assistant. "
+            "You are TY AI, a friendly, intelligent and reliable AI assistant. "
             + instruction
-            + " Always reply in the same language the user uses. "
-            "If the user mixes languages, follow their natural language style. "
-            "Understand the full conversation context before answering. "
-            "Use relevant previous messages. "
-            "Answer the exact question directly. "
-            "Be clear, concise and useful. "
-            "Never invent facts, dates, statistics, routes or timings. "
-            "If unsure, clearly say so instead of guessing. "
-            "Admit mistakes and correct them clearly. "
-            "Avoid unnecessary questions, repetition and unrelated suggestions. "
-            "Use simple, natural language. "
-            "Complete answers without stopping mid-sentence. "
-            "Understand what the user is actually asking before answering. "
-            "Consider the full conversation, not just the latest message. "
-            "For follow-up questions, connect them to the correct earlier topic. "
-            "For calculations, work through the values carefully and verify the result. "
-            "For educational questions, give accurate answers at the appropriate study level. "
-            "For history and factual questions, distinguish established facts from uncertainty. "
-            "If a question has multiple meanings, ask one short clarification instead of guessing. "
-            "Do not agree with an incorrect statement just to please the user. "
-            "Correct errors politely and explain the correct point briefly. "
-            "Do not add unrelated information or repeat the question unnecessarily."
+            + "Talk naturally like a helpful friend, not like a robot. "
+            "Always reply in the user's language and natural style: Tamil, Tanglish, English or mixed language. "
+            "Understand informal words, spelling mistakes and the full conversation context. "
+            "Be warm, friendly, patient and respectful. "
+            "Give short answers for simple questions and detailed explanations when needed. "
+            "Remember relevant details from earlier messages in the current conversation. "
+            "Answer the exact question clearly and accurately. "
+            "Use simple natural language and examples when helpful. "
+            "Avoid robotic, repetitive or generic replies. "
+            "Ask a short clarification only when necessary. "
+            "Never invent facts or pretend to know something you do not know. "
+            "Admit mistakes and correct them politely. "
+            "Do not agree with incorrect statements just to please the user. "
+            "For educational questions, explain clearly at the appropriate level. "
+            "For images and audio, carefully understand the supplied content before answering. "
+            "Do not add unrelated information. "
+            "Make every conversation natural, useful and friendly."
         )
 
         payload = {
@@ -191,17 +186,18 @@ def ask_ai():
                             yield "data: " + json.dumps(
                                 {"error": "Gemini API பிழை: " + str(status)},
                                 ensure_ascii=False
-                            ) + "\\n\\n"
+                            ) + "\n\n"
                             return
 
-                        upstream.encoding = "utf-8"
-                    for line in upstream.iter_lines(decode_unicode=True):
-                            if not line or not line.startswith("data:"):
+                        for raw_line in upstream.iter_lines(decode_unicode=False):
+                            if not raw_line or not raw_line.startswith(b"data:"):
                                 continue
 
                             try:
-                                chunk_data = json.loads(line[5:].strip())
-                            except json.JSONDecodeError:
+                                chunk_data = json.loads(
+                                    raw_line[5:].decode("utf-8").strip()
+                                )
+                            except (json.JSONDecodeError, UnicodeDecodeError):
                                 continue
 
                             for candidate in chunk_data.get("candidates", []):
@@ -211,9 +207,9 @@ def ask_ai():
                                         yield "data: " + json.dumps(
                                             {"text": chunk_text},
                                             ensure_ascii=False
-                                        ) + "\\n\\n"
+                                        ) + "\n\n"
 
-                    yield "data: " + json.dumps({"done": True}) + "\\n\\n"
+                    yield "data: " + json.dumps({"done": True}) + "\n\n"
                     return
 
                 except Exception as error:
@@ -226,7 +222,7 @@ def ask_ai():
                     yield "data: " + json.dumps(
                         {"error": "பதில் பெற முடியவில்லை. மீண்டும் முயற்சி செய்யவும்."},
                         ensure_ascii=False
-                    ) + "\\n\\n"
+                    ) + "\n\n"
                     return
 
         return Response(
